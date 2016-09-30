@@ -1,0 +1,235 @@
+<html>
+<title>JS Testing</title>
+<body>
+
+<script src=//cdnjs.cloudflare.com/ajax/libs/seedrandom/2.3.10/seedrandom.min.js>
+</script>
+
+<script>
+
+function findIP(onNewIP) { //  onNewIp - your listener function for new IPs
+  var myPeerConnection = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection; //compatibility for firefox and chrome
+  var pc = new myPeerConnection({iceServers: []}),
+    noop = function() {},
+    localIPs = {},
+    ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3}|[a-f0-9]{1,4}(:[a-f0-9]{1,4}){7})/g,
+    key;
+
+  function ipIterate(ip) {
+    if (!localIPs[ip]) onNewIP(ip);
+    localIPs[ip] = true;
+  }
+  pc.createDataChannel(""); //create a bogus data channel
+  pc.createOffer(function(sdp) {
+    sdp.sdp.split('\n').forEach(function(line) {
+      if (line.indexOf('candidate') < 0) return;
+      line.match(ipRegex).forEach(ipIterate);
+    });
+    pc.setLocalDescription(sdp, noop, noop);
+  }, noop); // create offer and set local description
+  pc.onicecandidate = function(ice) { //listen for candidate events
+    if (!ice || !ice.candidate || !ice.candidate.candidate || !ice.candidate.candidate.match(ipRegex)) return;
+    ice.candidate.candidate.match(ipRegex).forEach(ipIterate);
+  };
+}
+
+
+var ul = document.createElement('ul');
+document.body.appendChild(ul);
+
+function RGBtoHSL(R,G,B) {
+
+	var Cmax = Math.max(R,G,B)
+	var Cmin = Math.min(R,G,B)
+	var d = Cmax - Cmin
+
+	if (Cmax == R) {
+		if (((G-B)/d) < 0) {
+			H = Math.round(60*(6+(G-B)/d))
+		} else {
+			H = Math.round(60*(((G-B)/d)%6))
+		}
+		} else if (Cmax == G) {
+			H = Math.round(60*(((B-R)/d)+2))	
+		} else {
+			H = Math.round(60*(((R-G)/d)+4))		
+		}
+
+	L = ((Cmax-Cmin)/2)*100
+	S = (d/(1-Math.abs(2*(L/100)-1)))*100
+	
+	return H, S, L
+	
+}
+
+function HSLtoRgb(h, s, l){
+	var s = s/100
+	var l = l/100
+    var c = (1-Math.abs(2*l-1))*s
+	var x = c*(1-Math.abs(((h/60)%2)-1))
+	var m = l-c/2
+	
+	if (s == 0) {
+        r = g = b = l // achromatic
+    } else if (h < 60){
+		rgb = [(c+m)*255,(x+m)*255,(0+m)*255]
+	} else if (h < 120){
+		rgb = [(x+m)*255,(c+m)*255,(0+m)*255]
+	} else if (h < 180){
+		rgb = [(0+m)*255,(c+m)*255,(x+m)*255]
+	} else if (h < 240){
+		rgb = [(0+m)*255,(x+m)*255,(c+m)*255]
+	} else if (h < 300){
+		rgb = [(x+m)*255,(0+m)*255,(c+m)*255]
+	} else {
+		rgb = [(c+m)*255,(0+m)*255,(x+m)*255]
+	} 
+	
+	rgb[0] = Math.round(rgb[0])
+	rgb[1] = Math.round(rgb[1])
+	rgb[2] = Math.round(rgb[2])
+	
+    return rgb;
+}
+
+function generate_mosaic(cols, rows, h, s, l) {
+    var i, ncol, trans, colspan, style, html;
+    html += "<table>";
+
+    for (i = 0; i < rows; i += 1) {
+        html += "<tr>";
+        ncol = 0;
+        while (ncol < cols) {
+            
+			Math.seedrandom((i+1)*(ncol+1))
+			
+			trans = ncol / cols * 0.5 + i / rows * 0.5;
+            colspan = Math.floor(Math.random() * 2) + 1;
+
+            if (ncol === cols - 1) {
+                colspan = 1;
+            }
+			
+			color = Math.floor((Math.random() * 6) + 1)
+			
+			if (color%6 == 0) {
+				hp = h
+			} else if (color%6 == 1) {
+				if (h+60 > 360) {
+					hp = h - 300
+				} else {
+					hp = h + 60
+				}
+			} else if (color%6 == 2) {
+				if (h+120 > 360) {
+					hp = h - 240
+				} else {
+					hp = h + 120
+				}
+			} else if (color%6 == 3) {
+				if (h+180 > 360) {
+					hp = h - 180
+				} else {
+					hp = h + 180
+				}
+			} else if (color%6 == 4) {
+				if (h+240 > 360) {
+					hp = h - 120
+				} else {
+					hp = h + 240
+				}
+			} else if (color%6 == 5) {
+				if (h+300 > 360) {
+					hp = h - 60
+				} else {
+					hp = h + 300
+				}
+			}
+					
+					//r = HSLtoRgb(h,s,l)[0]
+					//g = HSLtoRgb(h,s,l)[1]
+					//b = HSLtoRgb(h,s,l)[2]
+					//console.log("r:" + r)
+					//console.log("g:" + g)
+					//console.log("b:" + b)
+
+					ncol += colspan;
+					colh = 4*Math.floor(Math.random() * 2) + 1;
+			
+			
+			
+			//style = "background-color: hsl(" + hp + "," + s + "%," + l + "%);"
+            style = "background-color: hsla(" + hp + "," + s + "%," + l + "%," + trans +");"
+			//style = "background-color: rgba(" + r + "," + g + "," + b + "," + trans + ");"
+			html += "<td colspan=" + colspan + " style='" + style + " line-height:" + 5 + "px '>&nbsp;<\/td>";
+        }
+        html += "<\/tr>";
+    }
+    html += "<\/table>";
+	console.log(h + " " + s + " " + l)
+	//console.log(rgb)
+    return html;
+}
+
+function addIP(ip) {
+	
+	var w = window.innerWidth * 0.10
+	var h = window.innerHeight * 0.10
+	
+	var split = ip.split(".")
+	var RGB = "" + split[0] + split[1] + split[2] + split[3]
+	Math.seedrandom(RGB)
+	
+	R = Math.random()
+	G = Math.random()
+	B = Math.random()
+	//var R = split[0]/255
+	//var G = split[1]/255
+	//var B = split[2]/255
+	
+	RGBtoHSL(R,G,B)
+
+	//document.body.style.backgroundColor = "hsl("+H+","+S+"%,"+L+"%)"
+	
+	/*var li = document.createElement('li')
+	li.textContent = "IP:" + ip
+	ul.appendChild(li)
+  
+	var li = document.createElement('li')
+	li.textContent = "H: " + H
+	ul.appendChild(li)
+ 
+	var li = document.createElement('li')
+	li.textContent = "S: " + S + "%"
+	ul.appendChild(li)
+  
+	var li = document.createElement('li')
+	li.textContent = "L: " + L + "%"
+	ul.appendChild(li)
+	*/
+	/*var li = document.createElement('li')
+	li.textContent ="R: " + R * 255
+	ul.appendChild(li)
+	
+	var li = document.createElement('li')
+	li.textContent ="G: " + G * 255
+	ul.appendChild(li)
+	
+	var li = document.createElement('li')
+	li.textContent ="B: " + B * 255
+	ul.appendChild(li)
+	*/
+	document.write(generate_mosaic(w, h, H, S, L))
+}
+
+findIP(addIP)
+
+
+
+//document.write(generate_mosaic(100, 50));
+
+</script>
+
+
+</body>
+</html>
